@@ -37,6 +37,12 @@
 #include "Magnum/visibility.h"
 #include "Magnum/Math/Vector.h"
 
+// Workaround for GCC build - Rdowell 9/18
+namespace std {
+    using ::round;
+    using ::fma;
+}
+
 namespace Magnum { namespace Math {
 
 namespace Implementation {

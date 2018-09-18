@@ -35,6 +35,11 @@
 #include "Magnum/Math/Matrix.h"
 #include "Magnum/Math/Vector2.h"
 
+// Workaround for GCC build - Rdowell 9/18
+namespace std {
+    using ::hypot;
+}
+
 namespace Magnum { namespace Math {
 
 namespace Implementation {

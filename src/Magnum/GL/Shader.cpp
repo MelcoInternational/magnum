@@ -43,6 +43,18 @@
 typedef char GLchar;
 #endif
 
+// Workaround for GCC build - Rdowell 9/18
+#include <sstream>
+namespace std
+{
+    template < typename T > std::string to_string( const T& n )
+    {
+        std::ostringstream stm ;
+        stm << n ;
+        return stm.str() ;
+    }
+}
+
 namespace Magnum { namespace GL {
 
 namespace Implementation {
