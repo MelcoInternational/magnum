@@ -29,8 +29,7 @@
  * @brief Class @ref Magnum::Trade::AnySceneImporter
  */
 
-#include <Magnum/Trade/AbstractImporter.h>
-
+#include "Magnum/Trade/AbstractImporter.h"
 #include "MagnumPlugins/AnySceneImporter/configure.h"
 
 #ifndef DOXYGEN_GENERATING_OUTPUT
@@ -124,6 +123,11 @@ class MAGNUM_ANYSCENEIMPORTER_EXPORT AnySceneImporter: public AbstractImporter {
         MAGNUM_ANYSCENEIMPORTER_LOCAL bool doIsOpened() const override;
         MAGNUM_ANYSCENEIMPORTER_LOCAL void doClose() override;
         MAGNUM_ANYSCENEIMPORTER_LOCAL void doOpenFile(const std::string& filename) override;
+
+        MAGNUM_ANYSCENEIMPORTER_LOCAL UnsignedInt doAnimationCount() const override;
+        MAGNUM_ANYSCENEIMPORTER_LOCAL std::string doAnimationName(UnsignedInt id) override;
+        MAGNUM_ANYSCENEIMPORTER_LOCAL Int doAnimationForName(const std::string& name) override;
+        MAGNUM_ANYSCENEIMPORTER_LOCAL Containers::Optional<AnimationData> doAnimation(UnsignedInt id) override;
 
         MAGNUM_ANYSCENEIMPORTER_LOCAL Int doDefaultScene() override;
 

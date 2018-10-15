@@ -29,14 +29,18 @@
 #include <vector>
 
 #include "Magnum/GL/Renderer.h"
-#include "Magnum/Math/Vector3.h"
+#include "Magnum/Math/Range.h"
 
 namespace Magnum { namespace GL { namespace Implementation {
 
 struct RendererState {
     explicit RendererState(Context& context, std::vector<std::string>& extensions);
 
+    Range1D(*lineWidthRangeImplementation)();
     void(*clearDepthfImplementation)(GLfloat);
+    #if !defined(MAGNUM_TARGET_GLES2) && !defined(MAGNUM_TARGET_WEBGL)
+    void(*minSampleShadingImplementation)(GLfloat);
+    #endif
     #ifndef MAGNUM_TARGET_WEBGL
     Renderer::GraphicsResetStatus(*graphicsResetStatusImplementation)();
 
@@ -69,6 +73,7 @@ struct RendererState {
     };
 
     PixelStorage packPixelStorage, unpackPixelStorage;
+    Range1D lineWidthRange;
 
     /* Bool parameter is ugly, but this is implementation detail of internal
        API so who cares */

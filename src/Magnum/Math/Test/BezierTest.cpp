@@ -221,6 +221,14 @@ void BezierTest::data() {
     #endif
     Vector2 c = b[2];
     CORRADE_COMPARE(c, (Vector2{0.0f, -1.2f}));
+
+    #ifndef CORRADE_MSVC2015_COMPATIBILITY /* Why? */
+    constexpr
+    #endif
+    Vector2 d = *b.data();
+    Vector2 e = a.data()[2];
+    CORRADE_COMPARE(d, (Vector2{3.5f, 0.1f}));
+    CORRADE_COMPARE(e, (Vector2{0.7f, 20.3f}));
 }
 
 void BezierTest::compare() {

@@ -127,6 +127,44 @@ template<class T, class K> Player<T, K>& Player<T, K>::pause(T pauseTime) {
     return *this;
 }
 
+template<class T, class K> Player<T, K>& Player<T, K>::seekBy(T timeDelta) {
+    /* Animation is stopped, nothing to do */
+    if(_state == State::Stopped) return *this;
+
+    /* If the animation is paused and parked already, trigger a "park" again in
+       order to have the values updated on the next call to advance(). The
+       value is simply the new elapsed animation time. */
+    if(_state == State::Paused && _stopPauseTime == T{}) {
+        _stopPauseTime = _startTime + timeDelta;
+        _startTime = {};
+        return *this;
+    }
+
+    /* Otherwise, the animation is either playing or not yet parked, simply
+       patch the start time to make the seek */
+    _startTime -= timeDelta;
+    return *this;
+}
+
+template<class T, class K> Player<T, K>& Player<T, K>::seekTo(T seekTime, T animationTime) {
+    /* Animation is stopped, nothing to do */
+    if(_state == State::Stopped) return *this;
+
+    /* If the animation is paused and parked already, trigger a "park" again in
+       order to have the values updated on the next call to advance(). The
+       value is simply the new elapsed animation time. */
+    if(_state == State::Paused && _stopPauseTime == T{}) {
+        _stopPauseTime = animationTime;
+        _startTime = {};
+        return *this;
+    }
+
+    /* Otherwise, the animation is either playing or not yet parked, simply
+       patch the start time to make the seek */
+    _startTime = seekTime - animationTime;
+    return *this;
+}
+
 template<class T, class K> Player<T, K>& Player<T, K>::stop() {
     _state = State::Stopped;
     /* Anything, just not a default-constructed value */
@@ -157,14 +195,14 @@ template<class T, class K> Containers::Optional<std::pair<UnsignedInt, K>> playe
 
        std::chrono::duration doesn't have operator bool, so I need to compare
        to default-constructed value. Ugh. */
-    if(state == State::Paused && (stopPauseTime != T{})) {
+    if(state == State::Paused && stopPauseTime != T{}) {
         startTime = stopPauseTime - startTime;
         timeToUse = startTime;
         stopPauseTime = {};
 
     /* The animation was stopped by the user right before this iteration,
        "park" the animation to the initial time */
-    } else if(state == State::Stopped && (stopPauseTime != T{})) {
+    } else if(state == State::Stopped && stopPauseTime != T{}) {
         timeToUse = {};
         startTime = {};
         stopPauseTime = {};
@@ -183,7 +221,7 @@ template<class T, class K> Containers::Optional<std::pair<UnsignedInt, K>> playe
         key = K{};
         playIteration = 0;
         if(playCount != 0) {
-            state = State::Stopped;
+            if(state != State::Paused) state = State::Stopped;
             startTime = {};
         }
 
@@ -193,7 +231,7 @@ template<class T, class K> Containers::Optional<std::pair<UnsignedInt, K>> playe
     } else {
         std::tie(playIteration, key) = scaler(timeToUse, duration);
         if(playCount && playIteration >= playCount) {
-            state = State::Stopped;
+            if(state != State::Paused) state = State::Stopped;
             /* Don't reset the startTime to disambiguate between explicitly
                stopped and "time run out" animation */
             playIteration = playCount - 1;
@@ -217,9 +255,15 @@ template<class T, class K> std::pair<UnsignedInt, K> Player<T, K>::elapsed(const
     if(elapsed) return *elapsed;
 
     /* If not advancing, the animation can be paused -- calculate the iteration
-       index and keyframe at which it was paused if the duration is nonzero. */
-    if(_state == State::Paused && duration)
-        return _scaler(_startTime, duration);
+       index and keyframe at which it was paused if the duration is nonzero. If
+       the paused animation ran out, return the last iteration index and the
+       duration, otherwise just the calculated value. */
+    if(_state == State::Paused && duration) {
+        const std::pair<UnsignedInt, K> elapsed = _scaler(_startTime, duration);
+        if(_playCount && elapsed.first >= _playCount)
+            return {_playCount - 1, duration};
+        return elapsed;
+    }
 
     /* It can be also stopped by running out, in that case return the last
        iteration index and the duration. Again have to use comparison to

@@ -46,30 +46,44 @@ template<class T> struct Constants {
     /* See TypeTraits for answer why these are functions and not constants. */
     #ifdef DOXYGEN_GENERATING_OUTPUT
     /**
-     * @brief Pi
+     * @brief @f$ \pi @f$.
      *
+     * @f[
+     *      \pi = 180 \degree
+     * @f]
      * @see @ref piHalf(), @ref piQuarter(), @ref tau(), @ref Deg, @ref Rad
      */
     static constexpr T pi();
 
     /**
-     * @brief Half of a pi
+     * @brief Half of a @f$ \pi @f$
      *
+     * @f[
+     *      \frac{\pi}{2} = 90 \degree
+     * @f]
      * @see @ref pi(), @ref piQuarter(), @ref tau(), @ref Deg, @ref Rad
      */
     static constexpr T piHalf();
 
     /**
-     * @brief Quarter of a pi
+     * @brief Quarter of a @f$ \pi @f$
      *
-     * @see @ref pi(), @ref piHalf(), @ref tau(), @ref Deg, @ref Rad
+     * @f[
+     *      \frac{\pi}{4} = 45 \degree
+     * @f]
+     * @see @ref pi(), @ref piHalf(), @ref sqrtHalf(), @ref tau(), @ref Deg,
+     *      @ref Rad
      */
     static constexpr T piQuarter();
 
     /**
-     * @brief Tau
+     * @brief @f$ \tau @f$.
      *
      * Or two pi. See the [Tau manifesto](https://www.tauday.com/tau-manifesto).
+     *
+     * @f[
+     *      \tau = 2 \pi = 360 \degree
+     * @f]
      * @see @ref pi(), @ref piHalf(), @ref piQuarter(), @ref Deg, @ref Rad
      */
     static constexpr T tau();
@@ -77,12 +91,42 @@ template<class T> struct Constants {
     /**
      * @brief Euler's number
      *
+     * @f[
+     *      e = \ln (1)
+     * @f]
      * @see @ref log(), @ref exp()
      */
     static constexpr T e();
 
-    static constexpr T sqrt2(); /**< @brief Square root of 2 */
-    static constexpr T sqrt3(); /**< @brief Square root of 3 */
+    /**
+     * @brief Square root of 2
+     *
+     * @f[
+     *      \sqrt{2}
+     * @f]
+     * @see @ref sqrt3(), @ref sqrtHalf()
+     */
+    static constexpr T sqrt2();
+
+    /**
+     * @brief Square root of 3
+     *
+     * @f[
+     *      \sqrt{3}
+     * @f]
+     * @see @ref sqrt2(), @ref sqrtHalf()
+     */
+    static constexpr T sqrt3();
+
+    /**
+     * @brief Square root of @f$ \frac{1}{2} @f$
+     *
+     * @f[
+     *      \frac{\sqrt{2}}{2} = \frac{1}{\sqrt{2}} = \sin(45 \degree) = \cos(45 \degree)
+     * @f]
+     * @see @ref sqrt2(), @ref sqrt3(), @ref piQuarter()
+     */
+    static constexpr T sqrtHalf();
 
     /**
      * @brief Quiet NaN
@@ -92,7 +136,7 @@ template<class T> struct Constants {
     static constexpr T nan();
 
     /**
-     * @brief Positive infinity
+     * @brief Positive @f$ \infty @f$.
      *
      * @see @ref isInf()
      */
@@ -111,6 +155,7 @@ template<> struct Constants<Double> {
     static constexpr Double e()         { return 2.718281828459045; }
     static constexpr Double sqrt2()     { return 1.414213562373095; }
     static constexpr Double sqrt3()     { return 1.732050807568877; }
+    static constexpr Double sqrtHalf()  { return 0.707106781186547; }
 
     static constexpr Double nan()   { return Double(NAN); }
     static constexpr Double inf()   { return HUGE_VAL; }
@@ -125,6 +170,7 @@ template<> struct Constants<Float> {
     static constexpr Float e()          { return 2.718281828f; }
     static constexpr Float sqrt2()      { return 1.414213562f; }
     static constexpr Float sqrt3()      { return 1.732050808f; }
+    static constexpr Float sqrtHalf()   { return 0.707106781f; }
 
     static constexpr Float nan()    { return NAN; }
     static constexpr Float inf()    { return HUGE_VALF; }

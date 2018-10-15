@@ -65,7 +65,7 @@ template<class T> class DualComplex: public Dual<Complex<T>> {
          * @param angle         Rotation angle (counterclockwise)
          *
          * @f[
-         *      \hat c = (cos \theta + i sin \theta) + \epsilon (0 + i0)
+         *      \hat c = (\cos(\theta) + i \sin(\theta)) + \epsilon (0 + i0)
          * @f]
          * @see @ref Complex::rotation(), @ref Matrix3::rotation(),
          *      @ref DualQuaternion::rotation()
@@ -179,6 +179,15 @@ template<class T> class DualComplex: public Dual<Complex<T>> {
         template<class U, class V = decltype(Implementation::DualComplexConverter<T, U>::to(std::declval<DualComplex<T>>()))> constexpr explicit operator U() const {
             return Implementation::DualComplexConverter<T, U>::to(*this);
         }
+
+        /**
+         * @brief Raw data
+         * @return One-dimensional array of four elements
+         *
+         * @see @ref real(), @ref dual()
+         */
+        T* data() { return Dual<Complex<T>>::data()->data(); }
+        constexpr const T* data() const { return Dual<Complex<T>>::data()->data(); } /**< @overload */
 
         /**
          * @brief Whether the dual complex number is normalized

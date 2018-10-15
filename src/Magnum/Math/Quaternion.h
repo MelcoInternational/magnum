@@ -247,7 +247,7 @@ template<class T> class Quaternion {
          * @param normalizedAxis    Normalized rotation axis
          *
          * Expects that the rotation axis is normalized. @f[
-         *      q = [\boldsymbol a \cdot sin \frac \theta 2, cos \frac \theta 2]
+         *      q = [\boldsymbol a \cdot \sin(\frac{\theta}{2}), \cos(\frac{\theta}{2})]
          * @f]
          * @see @ref angle(), @ref axis(), @ref DualQuaternion::rotation(),
          *      @ref Matrix4::rotation(), @ref Complex::rotation(),
@@ -317,6 +317,15 @@ template<class T> class Quaternion {
         template<class U, class V = decltype(Implementation::QuaternionConverter<T, U>::to(std::declval<Quaternion<T>>()))> constexpr explicit operator U() const {
             return Implementation::QuaternionConverter<T, U>::to(*this);
         }
+
+        /**
+         * @brief Raw data
+         * @return One-dimensional array of four elements
+         *
+         * @see @ref vector(), @ref scalar()
+         */
+        T* data() { return _vector.data(); }
+        constexpr const T* data() const { return _vector.data(); } /**< @overload */
 
         /** @brief Equality comparison */
         bool operator==(const Quaternion<T>& other) const {

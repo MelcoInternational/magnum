@@ -55,9 +55,9 @@ enum class SquareTextureCoords: UnsignedByte {
 
 2x2 square. Non-indexed @ref MeshPrimitive::TriangleStrip.
 
-@image html primitives-squaresolid.png
+@image html primitives-squaresolid.png width=256px
 
-@see @ref squareWireframe(), @ref planeSolid()
+@see @ref squareWireframe(), @ref planeSolid(), @ref gradient2D()
 */
 MAGNUM_PRIMITIVES_EXPORT Trade::MeshData2D squareSolid(SquareTextureCoords textureCoords = SquareTextureCoords::DontGenerate);
 
@@ -66,7 +66,7 @@ MAGNUM_PRIMITIVES_EXPORT Trade::MeshData2D squareSolid(SquareTextureCoords textu
 
 2x2 square. Non-indexed @ref MeshPrimitive::LineLoop.
 
-@image html primitives-squarewireframe.png
+@image html primitives-squarewireframe.png width=256px
 
 @see @ref squareSolid(), @ref planeWireframe()
 */

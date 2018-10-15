@@ -28,12 +28,16 @@
 #include <map>
 #include <sstream>
 #include <vector>
+#include <Corrade/Containers/Optional.h>
+#include <Corrade/PluginManager/Manager.h>
 
 #include "Magnum/ImageView.h"
 #include "Magnum/PixelFormat.h"
 #include "Magnum/Math/Functions.h"
 #include "Magnum/Math/Color.h"
 #include "Magnum/Math/Algorithms/KahanSum.h"
+#include "Magnum/Trade/AbstractImporter.h"
+#include "Magnum/Trade/ImageData.h"
 
 namespace Magnum { namespace DebugTools { namespace Implementation {
 
@@ -93,6 +97,7 @@ std::tuple<std::vector<Float>, Float, Float> calculateImageDelta(const ImageView
             case PixelFormat::second:                                       \
                 max = calculateImageDelta<size, T>(actual, expected, delta); \
                 break;
+        /* LCOV_EXCL_START */
         _d(R8Unorm, R8UI, 1, UnsignedByte)
         _d(RG8Unorm, RG8UI, 2, UnsignedByte)
         _d(RGB8Unorm, RGB8UI, 3, UnsignedByte)
@@ -121,6 +126,7 @@ std::tuple<std::vector<Float>, Float, Float> calculateImageDelta(const ImageView
         _c(RG32F, 2, Float)
         _c(RGB32F, 3, Float)
         _c(RGBA32F, 4, Float)
+        /* LCOV_EXCL_STOP */
         #undef _d
         #undef _c
 
@@ -250,6 +256,7 @@ void printPixelAt(Debug& out, const char* const pixels, const std::size_t stride
             case PixelFormat::second:                                       \
                 out << pixelAt<size, T>(pixels, stride, pos);               \
                 break;
+        /* LCOV_EXCL_START */
         _d(R8Unorm, R8UI, 1, UnsignedByte)
         _d(RG8Unorm, RG8UI, 2, UnsignedByte)
         _c(RGB8UI, 3, UnsignedByte)
@@ -279,6 +286,7 @@ void printPixelAt(Debug& out, const char* const pixels, const std::size_t stride
         _c(RG32F, 2, Float)
         _c(RGB32F, 3, Float)
         _c(RGBA32F, 4, Float)
+        /* LCOV_EXCL_STOP */
         #undef _d
         #undef _c
 
@@ -346,7 +354,7 @@ void printPixelAt(Debug& out, const char* const pixels, const std::size_t stride
         CORRADE_IGNORE_DEPRECATED_POP
         #endif
             /* Already handled by a printing assert before */
-            CORRADE_ASSERT_UNREACHABLE();
+            CORRADE_ASSERT_UNREACHABLE(); /* LCOV_EXCL_LINE */
     }
 }
 
@@ -403,21 +411,46 @@ void printPixelDeltas(Debug& out, const std::vector<Float>& delta, const ImageVi
     }
 }
 
-}}}
+enum class ImageComparatorBase::State: UnsignedByte {
+    PluginLoadFailed = 1,
+    ActualImageLoadFailed,
+    ExpectedImageLoadFailed,
+    ActualImageIsCompressed,
+    ExpectedImageIsCompressed,
+    DifferentSize,
+    DifferentFormat,
+    AboveThresholds,
+    AboveMeanThreshold,
+    AboveMaxThreshold
+};
 
-#ifndef DOXYGEN_GENERATING_OUTPUT
-/* If Doxygen sees this, all @ref Corrade::TestSuite links break (prolly
-   because the namespace is undocumented in this project) */
-namespace Corrade { namespace TestSuite {
+class ImageComparatorBase::FileState {
+    public:
+        explicit FileState(PluginManager::Manager<Trade::AbstractImporter>& manager): manager{&manager} {}
 
-using namespace Magnum;
+        explicit FileState(): _privateManager{Containers::InPlaceInit}, manager{&*_privateManager} {}
 
-Comparator<DebugTools::CompareImage>::Comparator(Float maxThreshold, Float meanThreshold): _maxThreshold{maxThreshold}, _meanThreshold{meanThreshold}, _max{}, _mean{} {
+    private:
+        Containers::Optional<PluginManager::Manager<Trade::AbstractImporter>> _privateManager;
+
+    public:
+        PluginManager::Manager<Trade::AbstractImporter>* manager;
+        std::string actualFilename, expectedFilename;
+        Containers::Optional<Trade::ImageData2D> actualImageData, expectedImageData;
+        /** @todo could at least the views have a NoCreate constructor? */
+        Containers::Optional<ImageView2D> actualImage, expectedImage;
+};
+
+ImageComparatorBase::ImageComparatorBase(PluginManager::Manager<Trade::AbstractImporter>* manager, Float maxThreshold, Float meanThreshold): _maxThreshold{maxThreshold}, _meanThreshold{meanThreshold}, _max{}, _mean{} {
+    if(manager) _fileState.reset(new FileState{*manager});
+
     CORRADE_ASSERT(meanThreshold <= maxThreshold,
         "DebugTools::CompareImage: maxThreshold can't be smaller than meanThreshold", );
 }
 
-bool Comparator<DebugTools::CompareImage>::operator()(const ImageView2D& actual, const ImageView2D& expected) {
+ImageComparatorBase::~ImageComparatorBase() = default;
+
+bool ImageComparatorBase::operator()(const ImageView2D& actual, const ImageView2D& expected) {
     _actualImage = &actual;
     _expectedImage = &expected;
 
@@ -448,7 +481,115 @@ bool Comparator<DebugTools::CompareImage>::operator()(const ImageView2D& actual,
     return false;
 }
 
-void Comparator<DebugTools::CompareImage>::printErrorMessage(Debug& out, const std::string& actual, const std::string& expected) const {
+bool ImageComparatorBase::operator()(const std::string& actual, const std::string& expected) {
+    if(!_fileState) _fileState.reset(new FileState);
+
+    _fileState->actualFilename = actual;
+    _fileState->expectedFilename = expected;
+
+    std::unique_ptr<Trade::AbstractImporter> importer;
+    if(!(importer = _fileState->manager->loadAndInstantiate("AnyImageImporter"))) {
+        _state = State::PluginLoadFailed;
+        return false;
+    }
+
+    if(!importer->openFile(actual) || !(_fileState->actualImageData = importer->image2D(0))) {
+        _state = State::ActualImageLoadFailed;
+        return false;
+    }
+
+    if(!importer->openFile(expected) || !(_fileState->expectedImageData = importer->image2D(0))) {
+        _state = State::ExpectedImageLoadFailed;
+        return false;
+    }
+
+    if(_fileState->actualImageData->isCompressed()) {
+        _state = State::ActualImageIsCompressed;
+        return false;
+    }
+
+    if(_fileState->expectedImageData->isCompressed()) {
+        _state = State::ExpectedImageIsCompressed;
+        return false;
+    }
+
+    _fileState->actualImage.emplace(*_fileState->actualImageData);
+    _fileState->expectedImage.emplace(*_fileState->expectedImageData);
+    return operator()(*_fileState->actualImage, *_fileState->expectedImage);
+}
+
+bool ImageComparatorBase::operator()(const ImageView2D& actual, const std::string& expected) {
+    if(!_fileState) _fileState.reset(new FileState);
+
+    _fileState->expectedFilename = expected;
+
+    std::unique_ptr<Trade::AbstractImporter> importer;
+    if(!(importer = _fileState->manager->loadAndInstantiate("AnyImageImporter"))) {
+        _state = State::PluginLoadFailed;
+        return false;
+    }
+
+    if(!importer->openFile(expected) || !(_fileState->expectedImageData = importer->image2D(0))) {
+        _state = State::ExpectedImageLoadFailed;
+        return false;
+    }
+
+    if(_fileState->expectedImageData->isCompressed()) {
+        _state = State::ExpectedImageIsCompressed;
+        return false;
+    }
+
+    _fileState->expectedImage.emplace(*_fileState->expectedImageData);
+    return operator()(actual, *_fileState->expectedImage);
+}
+
+bool ImageComparatorBase::operator()(const std::string& actual, const ImageView2D& expected) {
+    if(!_fileState) _fileState.reset(new FileState);
+
+    _fileState->actualFilename = actual;
+
+    std::unique_ptr<Trade::AbstractImporter> importer;
+    if(!(importer = _fileState->manager->loadAndInstantiate("AnyImageImporter"))) {
+        _state = State::PluginLoadFailed;
+        return false;
+    }
+
+    if(!importer->openFile(actual) || !(_fileState->actualImageData = importer->image2D(0))) {
+        _state = State::ActualImageLoadFailed;
+        return false;
+    }
+
+    if(_fileState->actualImageData->isCompressed()) {
+        _state = State::ActualImageIsCompressed;
+        return false;
+    }
+
+    _fileState->actualImage.emplace(*_fileState->actualImageData);
+    return operator()(*_fileState->actualImage, expected);
+}
+
+void ImageComparatorBase::printErrorMessage(Debug& out, const std::string& actual, const std::string& expected) const {
+    if(_state == State::PluginLoadFailed) {
+        out << "AnyImageImporter plugin could not be loaded.";
+        return;
+    }
+    if(_state == State::ActualImageLoadFailed) {
+        out << "Actual image" << actual << "(" << Debug::nospace << _fileState->actualFilename << Debug::nospace << ")" << "could not be loaded.";
+        return;
+    }
+    if(_state == State::ExpectedImageLoadFailed) {
+        out << "Expected image" << expected << "(" << Debug::nospace << _fileState->expectedFilename << Debug::nospace << ")" << "could not be loaded.";
+        return;
+    }
+    if(_state == State::ActualImageIsCompressed) {
+        out << "Actual image" << actual << "(" << Debug::nospace << _fileState->actualFilename << Debug::nospace << ")" << "is compressed, comparison not possible.";
+        return;
+    }
+    if(_state == State::ExpectedImageIsCompressed) {
+        out << "Expected image" << expected << "(" << Debug::nospace << _fileState->expectedFilename << Debug::nospace << ")" << "is compressed, comparison not possible.";
+        return;
+    }
+
     out << "Images" << actual << "and" << expected << "have";
     if(_state == State::DifferentSize)
         out << "different size, actual" << _actualImage->size() << "but"
@@ -480,5 +621,4 @@ void Comparator<DebugTools::CompareImage>::printErrorMessage(Debug& out, const s
     }
 }
 
-}}
-#endif
+}}}

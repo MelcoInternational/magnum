@@ -56,6 +56,7 @@
 #include <Magnum/Primitives/Cone.h>
 #include <Magnum/Primitives/Cube.h>
 #include <Magnum/Primitives/Cylinder.h>
+#include <Magnum/Primitives/Gradient.h>
 #include <Magnum/Primitives/Grid.h>
 #include <Magnum/Primitives/Icosphere.h>
 #include <Magnum/Primitives/Line.h>
@@ -76,7 +77,12 @@ using namespace Magnum;
 using namespace Magnum::Math::Literals;
 
 struct PrimitiveVisualizer: Platform::WindowlessApplication {
-    explicit PrimitiveVisualizer(const Arguments& arguments): Platform::WindowlessApplication{arguments} {}
+    explicit PrimitiveVisualizer(const Arguments& arguments): Platform::WindowlessApplication{arguments,
+        #ifndef CORRADE_TARGET_APPLE
+        /* So we can have wide lines */
+        Configuration{}.clearFlags(Configuration::Flag::ForwardCompatible)
+        #endif
+    } {}
 
     int exec() override;
 
@@ -112,12 +118,20 @@ struct PrimitiveVisualizer: Platform::WindowlessApplication {
     std::pair<Trade::MeshData3D, std::string> icosphereSolid();
     std::pair<Trade::MeshData3D, std::string> planeSolid();
     std::pair<Trade::MeshData3D, std::string> uvSphereSolid();
+
+    std::pair<Trade::MeshData2D, std::string> gradient2D();
+    std::pair<Trade::MeshData2D, std::string> gradient2DHorizontal();
+    std::pair<Trade::MeshData2D, std::string> gradient2DVertical();
+
+    std::pair<Trade::MeshData3D, std::string> gradient3D();
+    std::pair<Trade::MeshData3D, std::string> gradient3DHorizontal();
+    std::pair<Trade::MeshData3D, std::string> gradient3DVertical();
 };
 
 namespace {
-    constexpr const Vector2i ImageSize{256};
-    const auto BaseColor = 0x2f83cc_rgbf;
-    const auto OutlineColor = 0xdcdcdc_rgbf;
+    constexpr const Vector2i ImageSize{512};
+    const auto BaseColor = 0x2f83cc_srgbf;
+    const auto OutlineColor = 0xdcdcdc_srgbf;
     const auto Projection2D = Matrix3::projection({3.0f, 3.0f});
     const auto Projection3D = Matrix4::perspectiveProjection(35.0_degf, 1.0f, 0.001f, 100.0f);
     const auto Transformation2D = Matrix3::rotation(13.2_degf);
@@ -136,7 +150,7 @@ int PrimitiveVisualizer::exec() {
     }
 
     GL::Renderbuffer multisampleColor, multisampleDepth;
-    multisampleColor.setStorageMultisample(16, GL::RenderbufferFormat::RGBA8, ImageSize);
+    multisampleColor.setStorageMultisample(16, GL::RenderbufferFormat::SRGB8Alpha8, ImageSize);
     multisampleDepth.setStorageMultisample(16, GL::RenderbufferFormat::DepthComponent24, ImageSize);
 
     GL::Framebuffer multisampleFramebuffer{{{}, ImageSize}};
@@ -146,7 +160,7 @@ int PrimitiveVisualizer::exec() {
     CORRADE_INTERNAL_ASSERT(multisampleFramebuffer.checkStatus(GL::FramebufferTarget::Draw) == GL::Framebuffer::Status::Complete);
 
     GL::Renderbuffer color;
-    color.setStorage(GL::RenderbufferFormat::RGBA8, ImageSize);
+    color.setStorage(GL::RenderbufferFormat::SRGB8Alpha8, ImageSize);
     GL::Framebuffer framebuffer{{{}, ImageSize}};
     framebuffer.attachRenderbuffer(GL::Framebuffer::ColorAttachment{0}, color);
 
@@ -154,11 +168,13 @@ int PrimitiveVisualizer::exec() {
        order to draw the wireframe over. I couldn't get polygon offset to work
        on the first try so I gave up. This will of course break with things
        like torus later. */
+    GL::Renderer::enable(GL::Renderer::Feature::FramebufferSrgb);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
     GL::Renderer::enable(GL::Renderer::Feature::Blending);
     GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::One, GL::Renderer::BlendFunction::One);
-    GL::Renderer::setClearColor(0x000000_rgbaf);
-    GL::Renderer::setLineWidth(1.5f);
+    GL::Renderer::setClearColor(0x000000_srgbaf);
+    CORRADE_INTERNAL_ASSERT(GL::Renderer::lineWidthRange().contains(2.0f));
+    GL::Renderer::setLineWidth(2.0f);
 
     {
         Shaders::VertexColor2D shader;
@@ -253,17 +269,22 @@ int PrimitiveVisualizer::exec() {
         }
     }
 
+    Shaders::MeshVisualizer wireframe2D{Shaders::MeshVisualizer::Flag::Wireframe};
+    wireframe2D.setColor(0x00000000_srgbaf)
+        .setWireframeColor(OutlineColor)
+        .setWireframeWidth(2.0f)
+        .setViewportSize(Vector2{ImageSize})
+        .setTransformationProjectionMatrix(Matrix4{
+            /** @todo clean up once Matrix4 from Matrix3 constructor exists */
+            {(Projection2D*Transformation2D)[0], 0.0f},
+            {(Projection2D*Transformation2D)[1], 0.0f},
+            {0.0f, 0.0f, 1.0f, 0.0f},
+            {{(Projection2D*Transformation2D)[2].xy(), 0.0f}, 1.0f}});
+
     {
-        const Matrix3 projection = Projection2D*Transformation2D;
-        Shaders::MeshVisualizer shader{Shaders::MeshVisualizer::Flag::Wireframe};
-        shader.setColor(BaseColor)
-            .setWireframeColor(OutlineColor)
-            .setViewportSize(Vector2{ImageSize})
-            .setTransformationProjectionMatrix(Matrix4{
-                {projection[0], 0.0f},
-                {projection[1], 0.0f},
-                {0.0f, 0.0f, 1.0f, 0.0f},
-                {{projection[2].xy(), 0.0f}, 1.0f}});
+        Shaders::Flat2D flat;
+        flat.setColor(BaseColor)
+            .setTransformationProjectionMatrix(Projection2D*Transformation2D);
 
         for(auto fun: {&PrimitiveVisualizer::circle2DSolid,
                        &PrimitiveVisualizer::squareSolid})
@@ -282,7 +303,8 @@ int PrimitiveVisualizer::exec() {
                 .setCount(data->positions(0).size())
                 .setPrimitive(data->primitive());
 
-            mesh.draw(shader);
+            mesh.draw(flat)
+                .draw(wireframe2D);
 
             GL::AbstractFramebuffer::blit(multisampleFramebuffer, framebuffer, framebuffer.viewport(), GL::FramebufferBlit::Color);
             Image2D result = framebuffer.read(framebuffer.viewport(), {PixelFormat::RGBA8Unorm});
@@ -290,21 +312,22 @@ int PrimitiveVisualizer::exec() {
         }
     }
 
+    Shaders::MeshVisualizer wireframe3D{Shaders::MeshVisualizer::Flag::Wireframe};
+    wireframe3D.setColor(0x00000000_srgbaf)
+        .setWireframeColor(OutlineColor)
+        .setWireframeWidth(2.0f)
+        .setViewportSize(Vector2{ImageSize})
+        .setTransformationProjectionMatrix(Projection3D*Transformation3D);
+
     {
         Shaders::Phong phong;
-        phong.setAmbientColor(0x22272e_rgbf)
+        phong.setAmbientColor(0x22272e_srgbf)
             .setDiffuseColor(BaseColor)
-            .setSpecularColor(0x000000_rgbf)
+            .setSpecularColor(0x000000_srgbf)
             .setLightPosition({5.0f, 5.0f, 7.0f})
             .setProjectionMatrix(Projection3D)
             .setTransformationMatrix(Transformation3D)
             .setNormalMatrix(Transformation3D.rotationScaling());
-
-        Shaders::MeshVisualizer wireframe{Shaders::MeshVisualizer::Flag::Wireframe};
-        wireframe.setColor(0x000000_rgbaf)
-            .setWireframeColor(OutlineColor)
-            .setViewportSize(Vector2{ImageSize})
-            .setTransformationProjectionMatrix(Projection3D*Transformation3D);
 
         for(auto fun: {&PrimitiveVisualizer::capsule3DSolid,
                        &PrimitiveVisualizer::circle3DSolid,
@@ -324,7 +347,53 @@ int PrimitiveVisualizer::exec() {
 
             MeshTools::compile(*data)
                 .draw(phong)
-                .draw(wireframe);
+                .draw(wireframe3D);
+
+            GL::AbstractFramebuffer::blit(multisampleFramebuffer, framebuffer, framebuffer.viewport(), GL::FramebufferBlit::Color);
+            Image2D result = framebuffer.read(framebuffer.viewport(), {PixelFormat::RGBA8Unorm});
+            converter->exportToFile(result, Utility::Directory::join("../", "primitives-" + filename));
+        }
+    }
+
+    {
+        Shaders::VertexColor2D shader;
+        shader.setTransformationProjectionMatrix(Projection2D*Transformation2D);
+
+        for(auto fun: {&PrimitiveVisualizer::gradient2D,
+                       &PrimitiveVisualizer::gradient2DHorizontal,
+                       &PrimitiveVisualizer::gradient2DVertical}) {
+            multisampleFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
+
+            std::string filename;
+            Containers::Optional<Trade::MeshData2D> data;
+            std::tie(data, filename) = (this->*fun)();
+
+            MeshTools::compile(*data)
+                .draw(shader)
+                .draw(wireframe2D);
+
+            GL::AbstractFramebuffer::blit(multisampleFramebuffer, framebuffer, framebuffer.viewport(), GL::FramebufferBlit::Color);
+            Image2D result = framebuffer.read(framebuffer.viewport(), {PixelFormat::RGBA8Unorm});
+            converter->exportToFile(result, Utility::Directory::join("../", "primitives-" + filename));
+        }
+    }
+
+    {
+        Shaders::VertexColor3D shader;
+        shader.setTransformationProjectionMatrix(Projection3D*Transformation3D);
+
+        for(auto fun: {&PrimitiveVisualizer::gradient3D,
+                       &PrimitiveVisualizer::gradient3DHorizontal,
+                       &PrimitiveVisualizer::gradient3DVertical}) {
+            multisampleFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
+
+            std::string filename;
+            Containers::Optional<Trade::MeshData3D> data;
+            std::tie(data, filename) = (this->*fun)();
+
+            MeshTools::compile(*data)
+                .draw(shader)
+                .draw(wireframe3D);
 
             GL::AbstractFramebuffer::blit(multisampleFramebuffer, framebuffer, framebuffer.viewport(), GL::FramebufferBlit::Color);
             Image2D result = framebuffer.read(framebuffer.viewport(), {PixelFormat::RGBA8Unorm});
@@ -339,8 +408,40 @@ std::pair<Trade::MeshData2D, std::string> PrimitiveVisualizer::axis2D() {
     return {Primitives::axis2D(), "axis2d.png"};
 }
 
+std::pair<Trade::MeshData2D, std::string> PrimitiveVisualizer::gradient2D() {
+    return {Primitives::gradient2D({1.0f, -2.0f}, 0x2f83cc_srgbf, {-1.0f, 2.0f}, 0x3bd267_srgbf), "gradient2d.png"};
+}
+
+namespace {
+    /* End colors for axis-aligned gradients are 20%/80% blends of the above to
+       match the range */
+    const Color3 Gradient20Percent = Math::lerp(0x2f83cc_srgbf, 0x3bd267_srgbf, 0.2f);
+    const Color3 Gradient80Percent = Math::lerp(0x2f83cc_srgbf, 0x3bd267_srgbf, 0.8f);
+}
+
+std::pair<Trade::MeshData2D, std::string> PrimitiveVisualizer::gradient2DHorizontal() {
+    return {Primitives::gradient2DHorizontal(Gradient20Percent, Gradient80Percent), "gradient2dhorizontal.png"};
+}
+
+std::pair<Trade::MeshData2D, std::string> PrimitiveVisualizer::gradient2DVertical() {
+    /* End colors are 20%/80% blends of the above to match the range */
+    return {Primitives::gradient2DVertical(Gradient20Percent, Gradient80Percent), "gradient2dvertical.png"};
+}
+
 std::pair<Trade::MeshData3D, std::string> PrimitiveVisualizer::axis3D() {
     return {Primitives::axis3D(), "axis3d.png"};
+}
+
+std::pair<Trade::MeshData3D, std::string> PrimitiveVisualizer::gradient3D() {
+    return {Primitives::gradient3D({1.0f, -2.0f, -1.5f}, 0x2f83cc_srgbf, {-1.0f, 2.0f, -1.5f}, 0x3bd267_srgbf), "gradient3d.png"};
+}
+
+std::pair<Trade::MeshData3D, std::string> PrimitiveVisualizer::gradient3DHorizontal() {
+    return {Primitives::gradient3DHorizontal(Gradient20Percent, Gradient80Percent), "gradient3dhorizontal.png"};
+}
+
+std::pair<Trade::MeshData3D, std::string> PrimitiveVisualizer::gradient3DVertical() {
+    return {Primitives::gradient3DVertical(Gradient20Percent, Gradient80Percent), "gradient3dvertical.png"};
 }
 
 std::pair<Trade::MeshData2D, std::string> PrimitiveVisualizer::capsule2DWireframe() {

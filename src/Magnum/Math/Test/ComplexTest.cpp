@@ -73,6 +73,7 @@ struct ComplexTest: Corrade::TestSuite::Tester {
     void addSubtract();
     void negated();
     void multiplyDivideScalar();
+    void multiplyDivideVector();
     void multiply();
 
     void dot();
@@ -118,6 +119,7 @@ ComplexTest::ComplexTest() {
               &ComplexTest::addSubtract,
               &ComplexTest::negated,
               &ComplexTest::multiplyDivideScalar,
+              &ComplexTest::multiplyDivideVector,
               &ComplexTest::multiply,
 
               &ComplexTest::dot,
@@ -267,6 +269,11 @@ void ComplexTest::data() {
     a.real() = 2.0f;
     a.imaginary() = -3.5f;
     CORRADE_COMPARE(a, (Complex{2.0f, -3.5f}));
+
+    constexpr Float b = *ca.data();
+    Float c = a.data()[1];
+    CORRADE_COMPARE(b, 1.5f);
+    CORRADE_COMPARE(c, -3.5f);
 }
 
 void ComplexTest::compare() {
@@ -311,6 +318,19 @@ void ComplexTest::multiplyDivideScalar() {
 
     Complex c(-0.8f, 4.0f);
     CORRADE_COMPARE(-2.0f/a, c);
+}
+
+void ComplexTest::multiplyDivideVector() {
+    Complex a{ 2.5f, -0.5f};
+    Vector2 b{-3.0f,  0.8f};
+    Complex c{-7.5f, -0.4f};
+
+    CORRADE_COMPARE(a*b, c);
+    CORRADE_COMPARE(b*a, c);
+    CORRADE_COMPARE(c/b, a);
+
+    Complex d(-0.8f, -3.2f);
+    CORRADE_COMPARE((Vector2{-2.0f, 1.6f}/a), d);
 }
 
 void ComplexTest::multiply() {

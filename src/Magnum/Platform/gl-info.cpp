@@ -48,6 +48,7 @@
 #ifndef MAGNUM_TARGET_GLES
 #include "Magnum/GL/RectangleTexture.h"
 #endif
+#include "Magnum/GL/Renderer.h"
 #include "Magnum/GL/Renderbuffer.h"
 #include "Magnum/GL/Shader.h"
 #include "Magnum/GL/Texture.h"
@@ -260,6 +261,15 @@ MagnumInfo::MagnumInfo(const Arguments& arguments): Platform::WindowlessApplicat
     #ifdef CORRADE_TARGET_ANDROID
     Debug() << "    CORRADE_TARGET_ANDROID";
     #endif
+    #ifdef CORRADE_TARGET_X86
+    Debug() << "    CORRADE_TARGET_X86";
+    #endif
+    #ifdef CORRADE_TARGET_ARM
+    Debug() << "    CORRADE_TARGET_ARM";
+    #endif
+    #ifdef CORRADE_PLUGINMANAGER_NO_DYNAMIC_PLUGIN_SUPPORT
+    Debug() << "    CORRADE_PLUGINMANAGER_NO_DYNAMIC_PLUGIN_SUPPORT";
+    #endif
     #ifdef CORRADE_TESTSUITE_TARGET_XCTEST
     Debug() << "    CORRADE_TESTSUITE_TARGET_XCTEST";
     #endif
@@ -388,6 +398,7 @@ MagnumInfo::MagnumInfo(const Arguments& arguments): Platform::WindowlessApplicat
     _l(GL::Mesh::maxElementsIndices())
     _l(GL::Mesh::maxElementsVertices())
     #endif
+    _lvec(GL::Renderer::lineWidthRange())
     _l(GL::Renderbuffer::maxSize())
     #if !(defined(MAGNUM_TARGET_WEBGL) && defined(MAGNUM_TARGET_GLES2))
     _l(GL::Renderbuffer::maxSamples())

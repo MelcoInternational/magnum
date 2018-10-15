@@ -35,6 +35,31 @@
 
 namespace Magnum { namespace GL {
 
+Range1D Renderer::lineWidthRange() {
+    auto& state = *Context::current().state().renderer;
+    Range1D& value = state.lineWidthRange;
+
+    /* Get the value, if not already cached */
+    if(value.max().isZero())
+        value = state.lineWidthRangeImplementation();
+
+    return value;
+}
+
+Range1D Renderer::lineWidthRangeImplementationDefault() {
+    Range1D value;
+    glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, value.data());
+    return value;
+}
+
+#ifndef MAGNUM_TARGET_GLES
+Range1D Renderer::lineWidthRangeImplementationMesaForwardCompatible() {
+    Range1D value = lineWidthRangeImplementationDefault();
+    value.max() = Math::min(1.0f, value.max()[0]);
+    return value;
+}
+#endif
+
 void Renderer::enable(const Feature feature) {
     glEnable(GLenum(feature));
 }
@@ -106,6 +131,22 @@ void Renderer::setLineWidth(const Float width) {
 void Renderer::setPointSize(const Float size) {
     glPointSize(size);
 }
+#endif
+
+#if !defined(MAGNUM_TARGET_GLES2) && !defined(MAGNUM_TARGET_WEBGL)
+void Renderer::setMinSampleShading(const Float value) {
+    (Context::current().state().renderer->minSampleShadingImplementation)(value);
+}
+
+void Renderer::minSampleShadingImplementationDefault(const GLfloat value) {
+    glMinSampleShading(value);
+}
+
+#ifdef MAGNUM_TARGET_GLES
+void Renderer::minSampleShadingImplementationOES(const GLfloat value) {
+    glMinSampleShadingOES(value);
+}
+#endif
 #endif
 
 void Renderer::setScissor(const Range2Di& rectangle) {

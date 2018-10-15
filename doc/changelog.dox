@@ -45,6 +45,24 @@ See also:
 -   New experimental @ref Animation library for keyframe-based animation
     playback
 
+@subsubsection changelog-latest-new-debugtools DebugTools library
+
+-   New @ref DebugTools::CompareImageFile, @ref DebugTools::CompareImageToFile
+    and @ref DebugTools::CompareFileToImage comparators extending
+    @ref DebugTools::CompareImage with convenient image file loading
+
+@subsubsection changelog-latest-new-gl GL library
+
+-   Exposing @ref GL::Context::Flag::ForwardCompatible through
+    @ref GL::Context::flags(), which was deliberately ignored before.
+-   New @ref GL::Renderer::lineWidthRange() limit query. The reported maximum
+    can be over @cpp 1.0f @ce only in non-forward-compatible contexts, a new
+    @cpp "mesa-forward-compatible-line-width-range" @ce workaround fixes that
+    for Mesa. See @ref opengl-workarounds for more information.
+-   Implemented the @gl_extension{ARB,sample_shading} desktop extension and the
+    equivalent functionality in OpenGL ES 3.2 / @gl_extension{OES,sample_shading}
+    ES3 extension
+
 @subsubsection changelog-latest-new-math Math library
 
 -   New @ref Math::CubicHermite class for cubic Hermite spline interpolation,
@@ -88,7 +106,7 @@ See also:
     integral centered ranges
 -   @ref Math::Range is now constructible from a @ref std::pair of values,
     making it usable in combination with @ref Math::minmax(), for example
--   Added @ref Math::Constants::piQuarter()
+-   Added @ref Math::Constants::piQuarter(), @ref Math::Constants::sqrtHalf()
 -   Added a convenience function @ref Math::select() as a constant
     interpolation counterpart to @ref Math::lerp()
 -   Added a convenience function @ref Math::planeEquation() to aid with passing
@@ -96,13 +114,22 @@ See also:
     @ref Math::Distance::pointPlane() and others
 -   Ability to convert @ref Math::BoolVector from and to external
     representation
+-   Ability to construct @ref Math::Matrix from a smaller or larger square
+    matrix by slicing or expanding it
 -   Mutable overloads for @ref Math::Complex::real(),
     @ref Math::Complex::imaginary(), @ref Math::Dual::real(),
     @ref Math::Dual::dual(), @ref Math::Quaternion::vector() and
     @ref Math::Quaternion::scalar()
+-   Ability to do a component-wise multiply and divide of @ref Math::Complex
+    and a @ref Math::Vector2, in addition to multiplication/division with a
+    scalar
 -   Ability to use @ref Math::Complex, @ref Math::DualComplex,
     @ref Math::Quaternion, @ref Math::DualQuaternion with
     @ref Corrade::Utility::Configuration and @ref Corrade::Utility::Arguments
+-   Added @ref Math::Complex::data(), @ref Math::Quaternion::data(),
+    @ref Math::DualComplex::data(), @ref Math::DualQuaternion::data(),
+    @ref Math::Bezier::data() and @ref Math::CubicHermite::data() for simple
+    access to underlying memory like with other math types
 -   New @ref Math::min(), @ref Math::max() and @ref Math::minmax() overloads
     taking plain C arrays
 
@@ -127,9 +154,25 @@ See also:
     parameters consistent across the implementations.
 -   Added numpad keys to @ref Platform::Sdl2Application::KeyEvent::Key,
     consistent with GLFW key mapping
+-   Exposed enabled-by-default @ref Platform::Sdl2Application::GLConfiguration::Flag::ForwardCompatible "GLConfiguration::Flag::ForwardCompatible"
+    flag in @ref Platform::Sdl2Application and @ref Platform::GlfwApplication,
+    added @ref Platform::Sdl2Application::GLConfiguration::addFlags() "GLConfiguration::addFlags()"
+    and @ref Platform::Sdl2Application::GLConfiguration::clearFlags() "GLConfiguration::clearFlags()"
+    for easier flag handling
+-   Exposed enabled-by-default @ref Platform::WindowlessEglApplication::Configuration::Flag::ForwardCompatible "Configuration::Flag::ForwardCompatible"
+    flag in @ref Platform::WindowlessEglApplication,
+    @ref Platform::WindowlessGlxApplication and
+    @ref Platform::WindowlessWglApplication,
+    added @ref Platform::WindowlessEglApplication::Configuration::addFlags() "Configuration::addFlags()"
+    and @ref Platform::WindowlessEglApplication::Configuration::clearFlags() "Configuration::clearFlags()"
+    for easier flag handling
 
 @subsubsection changelog-latest-new-primitives Primitives library
 
+-   New @ref Primitives::gradient2D(), @ref Primitives::gradient2DHorizontal(),
+    @ref Primitives::gradient2DVertical(), @ref Primitives::gradient3D(),
+    @ref Primitives::gradient3DHorizontal() and
+    @ref Primitives::gradient3DVertical() primitives
 -   New @ref Primitives::line2D(const Vector2&, const Vector2&) and
     @ref Primitives::line3D(const Vector3&, const Vector3&) overloads for
     easier creation of arbitrary lines, as transforming the line identities is
@@ -181,6 +224,8 @@ See also:
     next to file type detection based on filename
 -   @ref Trade::AnyImageConverter "AnyImageConverter" learned detection of JPEG
     output
+-   @ref Trade::AnySceneImporter "AnySceneImporter" gained support for
+    animation import
 
 @subsection changelog-latest-changes Changes and improvements
 
@@ -259,6 +304,14 @@ See also:
     @cpp {640, 480} @ce
 -   @ref Platform::Sdl2Application::Configuration::WindowFlags values that make
     no sense on Emscripten are not available there anymore
+-   When using SDL 2.0.8 and newer, @ref Platform::Sdl2Application no longer
+    attempts to disable compositing on Linux. See @ref Platform-Sdl2Application-usage-linux
+    for more information.
+-   New @cpp "swiftshader-no-empty-egl-context-flags" @ce and
+    @cpp "swiftshader-egl-context-needs-pbuffer" @ce workarounds to make
+    @ref Platform::WindowlessEglApplication working with
+    [SwiftShader](https://github.com/google/swiftshader). See
+    @ref opengl-workarounds for more information.
 
 @subsubsection changelog-latest-changes-shaders Shaders library
 
@@ -348,9 +401,17 @@ See also:
     a proper documented default value instead of being left uninitialized.
 -   @ref Math::sclerp() was not properly interpolating the translation if
     rotation was the same on both sides
+-   Improved @ref TextureTools::distanceField() to work better on shader
+    compilers that have problems compiling nested loops (WebGL implementations,
+    some ES2 devices)
+-   @ref SceneGraph::AbstractObject::addFeature() and
+    @ref SceneGraph::Object::addChild() were not properly forwarding reference
+    arguments
 
 @subsection changelog-latest-docs Documentation
 
+-   New @ref custom-buildsystems page listing the most important things to keep
+    in mind when using Magnum with custom buildsystems.
 -   Compiled code snippets for @ref Audio and @ref SceneGraph libraries, fixing
     cases where outdated or plain wrong API constructs were mentioned
 -   Extended documentation for @ref Math::Matrix3::rotation(),
@@ -358,6 +419,10 @@ See also:
     and caveats
 -   Reworked documentation of @ref Math::Algorithms, adding math equations and
     usage examples to all functions
+-   Improved documentation of @ref Math::Constants, showing useful identities
+    for each
+-   The @ref scenegraph documentation was proofread and extended with a section
+    covering basics with visual diagrams.
 -   Explicitly mentioning copy/move constructibility for all classes with
     non-trivial construction
 -   Improved Vcpkg build instructions (see
@@ -368,6 +433,8 @@ See also:
     oversized on others (see
     [mosra/magnum#260](https://github.com/mosra/magnum/issues/260),
     [mosra/magnum#261](https://github.com/mosra/magnum/issues/261))
+-   Documentation of @ref Primitives and @ref Shaders namespaces now has proper
+    sRGB and HiDPi renderings of all primitives and shaders
 
 @subsection changelog-latest-deprecated Deprecated APIs
 
@@ -460,6 +527,12 @@ See also:
     @ref Trade::PhongMaterialData::diffuseColor() "diffuseColor()" and
     @ref Trade::PhongMaterialData::specularColor() "specularColor()" now return
     @ref Color4 instead of @ref Color3
+-   Applications now expose GL context forward compatibility as an
+    enabled-by-default context flag. Calling
+    @ref Platform::Sdl2Application::GLConfiguration::setFlags() "Platform::*Application::GLConfiguration::setFlags()"
+    (and similarly on windowless apps) will reset that flag, use
+    @ref Platform::Sdl2Application::GLConfiguration::addFlags() "Platform::*Application::GLConfiguration::addFlags()" (And similarly on
+    windowless apps) to preserve the enabled-by-default flags.
 
 @section changelog-2018-04 2018.04
 

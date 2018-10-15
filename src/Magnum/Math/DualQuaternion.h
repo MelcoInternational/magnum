@@ -200,7 +200,7 @@ template<class T> class DualQuaternion: public Dual<Quaternion<T>> {
          * @param normalizedAxis    Normalized rotation axis
          *
          * Expects that the rotation axis is normalized. @f[
-         *      \hat q = [\boldsymbol a \cdot sin \frac \theta 2, cos \frac \theta 2] + \epsilon [\boldsymbol 0, 0]
+         *      \hat q = [\boldsymbol a \cdot \sin(\frac{\theta}{2}), \cos(\frac{\theta}{2})] + \epsilon [\boldsymbol 0, 0]
          * @f]
          * @see @ref rotation() const, @ref Quaternion::rotation(),
          *      @ref Matrix4::rotation(), @ref DualComplex::rotation(),
@@ -328,6 +328,15 @@ template<class T> class DualQuaternion: public Dual<Quaternion<T>> {
         template<class U, class V = decltype(Implementation::DualQuaternionConverter<T, U>::to(std::declval<DualQuaternion<T>>()))> constexpr explicit operator U() const {
             return Implementation::DualQuaternionConverter<T, U>::to(*this);
         }
+
+        /**
+         * @brief Raw data
+         * @return One-dimensional array of eight elements
+         *
+         * @see @ref real(), @ref dual()
+         */
+        T* data() { return Dual<Quaternion<T>>::data()->data(); }
+        constexpr const T* data() const { return Dual<Quaternion<T>>::data()->data(); } /**< @overload */
 
         /**
          * @brief Whether the dual quaternion is normalized

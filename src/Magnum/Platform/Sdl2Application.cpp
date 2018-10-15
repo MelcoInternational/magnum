@@ -95,6 +95,10 @@ Sdl2Application::Sdl2Application(const Arguments& arguments, NoCreateT):
         std::exit(1);
     }
 
+    #ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR /* Available since 2.0.8 */
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+    #endif
+
     /* Save command-line arguments */
     if(args.value("log") == "verbose") _verboseLog = true;
     const std::string dpiScaling = args.value("dpi-scaling");
@@ -180,8 +184,7 @@ Vector2 Sdl2Application::dpiScaling(const Configuration& configuration) const {
 
         /* Otherwise ¯\_(ツ)_/¯ */
         #else
-        Debug{verbose} << "Platform::Sdl2Application: sorry, virtual DPI scaling not implemented on this platform yet";
-        return Vector2{1.0f};
+        Debug{verbose} << "Platform::Sdl2Application: sorry, virtual DPI scaling not implemented on this platform yet, falling back to physical DPI scaling";
         #endif
     }
     #endif
@@ -269,8 +272,13 @@ bool Sdl2Application::tryCreate(const Configuration& configuration, const GLConf
     GLConfiguration glConfiguration{_glConfiguration};
     CORRADE_IGNORE_DEPRECATED_PUSH
     #ifndef CORRADE_TARGET_EMSCRIPTEN
+    #ifndef MAGNUM_TARGET_GLES
+    if(configuration.flags() && glConfiguration.flags() == GLConfiguration::Flag::ForwardCompatible)
+        glConfiguration.setFlags(configuration.flags()|GLConfiguration::Flag::ForwardCompatible);
+    #else
     if(configuration.flags() && !glConfiguration.flags())
         glConfiguration.setFlags(configuration.flags());
+    #endif
     if(configuration.version() != GL::Version::None && glConfiguration.version() == GL::Version::None)
         glConfiguration.setVersion(configuration.version());
     #endif
@@ -340,7 +348,7 @@ bool Sdl2Application::tryCreate(const Configuration& configuration, const GLConf
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
         #endif
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, int(glConfiguration.flags())|SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, int(glConfiguration.flags()));
         #else
         /* For ES the major context version is compile-time constant */
         #ifdef MAGNUM_TARGET_GLES3
@@ -413,7 +421,8 @@ bool Sdl2Application::tryCreate(const Configuration& configuration, const GLConf
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, int(glConfiguration.flags()));
+        /** @todo or keep the fwcompat? */
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, int(glConfiguration.flags() & ~GLConfiguration::Flag::ForwardCompatible));
 
         if(!(_window = SDL_CreateWindow(configuration.title().data(),
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -836,7 +845,13 @@ Sdl2Application::GLConfiguration::GLConfiguration():
     _colorBufferSize{8, 8, 8, 0}, _depthBufferSize{24}, _stencilBufferSize{0},
     _sampleCount(0)
     #ifndef CORRADE_TARGET_EMSCRIPTEN
-    , _version(GL::Version::None), _srgbCapable{false}
+    , _version(GL::Version::None),
+    #ifndef MAGNUM_TARGET_GLES
+    _flags{Flag::ForwardCompatible},
+    #else
+    _flags{},
+    #endif
+    _srgbCapable{false}
     #endif
     {}
 
@@ -856,6 +871,9 @@ Sdl2Application::Configuration::Configuration():
     #if defined(MAGNUM_BUILD_DEPRECATED) && defined(MAGNUM_TARGET_GL)
     , _sampleCount(0)
     #ifndef CORRADE_TARGET_EMSCRIPTEN
+    /* Deliberately not setting _flags to ForwardCompatible to avoid them
+       having higher priority over GLConfiguration flags, appending that flag
+       later */
     , _version(GL::Version::None), _srgbCapable{false}
     #endif
     #endif

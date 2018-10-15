@@ -262,11 +262,18 @@ class MAGNUM_GL_EXPORT Renderer {
             RasterizerDiscard = GL_RASTERIZER_DISCARD,
             #endif
 
+            #if !defined(MAGNUM_TARGET_GLES2) && !defined(MAGNUM_TARGET_WEBGL)
             /**
-             * Scissor test
-             * @see @ref setScissor()
+             * Sample shading.
+             * @see @ref setMinSampleShading()
+             * @requires_gl40 Extension @gl_extension{ARB,sample_shading}
+             * @requires_gles32 Extension @gl_extension{ANDROID,extension_pack_es31a}
+             *      / @gl_extension{OES,sample_shading}
+             * @requires_gles30 Sample shading is not defined in OpenGL ES 2.0.
+             * @requires_gles Sample shading is not available in WebGL.
              */
-            ScissorTest = GL_SCISSOR_TEST,
+            SampleShading = GL_SAMPLE_SHADING,
+            #endif
 
             #ifndef MAGNUM_TARGET_GLES
             /**
@@ -280,12 +287,30 @@ class MAGNUM_GL_EXPORT Renderer {
             #endif
 
             /**
+             * Scissor test
+             * @see @ref setScissor()
+             */
+            ScissorTest = GL_SCISSOR_TEST,
+
+            /**
              * Stencil test
              * @see @ref setClearStencil(), @ref setStencilFunction(),
              *      @ref setStencilOperation(), @ref setStencilMask()
              */
             StencilTest = GL_STENCIL_TEST
         };
+
+        /**
+         * @brief Line width range
+         *
+         * The result is cached, repeated queries don't result in repeated
+         * OpenGL calls. Note that lines wider than @cpp 1.0f @ce are supported
+         * only when the context is not forward-compatible. Smooth lines are
+         * @ref opengl-unsupported "not supported by design".
+         * @see @ref setLineWidth(), @fn_gl{Get} with
+         *      @def_gl_keyword{ALIASED_LINE_WIDTH_RANGE}
+         */
+        static Range1D lineWidthRange();
 
         /**
          * @brief Enable feature
@@ -567,8 +592,11 @@ class MAGNUM_GL_EXPORT Renderer {
         /**
          * @brief Set line width
          *
-         * Initial value is @cpp 1.0f @ce.
-         * @see @fn_gl_keyword{LineWidth}
+         * Initial value is @cpp 1.0f @ce. Note that on contexts that are
+         * @ref Context::Flag::ForwardCompatible the max supported value is
+         * @cpp 1.0f @ce --- request a non-forward-compatible context to get
+         * wide lines on supported hardware.
+         * @see @ref lineWidthRange(), @fn_gl_keyword{LineWidth}
          */
         static void setLineWidth(Float width);
 
@@ -582,6 +610,20 @@ class MAGNUM_GL_EXPORT Renderer {
          *      OpenGL ES and WebGL instead.
          */
         static void setPointSize(Float size);
+        #endif
+
+        #if !defined(MAGNUM_TARGET_GLES2) && !defined(MAGNUM_TARGET_WEBGL)
+        /**
+         * @brief Set min sample shading value
+         *
+         * @see @ref Feature::SampleShading, @fn_gl_keyword{MinSampleShading}
+         * @requires_gl40 Extension @gl_extension{ARB,sample_shading}
+         * @requires_gles32 Extension @gl_extension{ANDROID,extension_pack_es31a} /
+         *      @gl_extension{OES,sample_shading}
+         * @requires_gles30 Sample shading is not defined in OpenGL ES 2.0.
+         * @requires_gles Sample shading is not available in WebGL.
+         */
+        static void setMinSampleShading(Float value);
         #endif
 
         /*@}*/
@@ -1628,10 +1670,22 @@ class MAGNUM_GL_EXPORT Renderer {
     private:
         static void MAGNUM_GL_LOCAL initializeContextBasedFunctionality();
 
+        static MAGNUM_GL_LOCAL Range1D lineWidthRangeImplementationDefault();
+        #ifndef MAGNUM_TARGET_GLES
+        static MAGNUM_GL_LOCAL Range1D lineWidthRangeImplementationMesaForwardCompatible();
+        #endif
+
         #ifndef MAGNUM_TARGET_GLES
         static void MAGNUM_GL_LOCAL clearDepthfImplementationDefault(GLfloat depth);
         #endif
         static void MAGNUM_GL_LOCAL clearDepthfImplementationES(GLfloat depth);
+
+        #if !defined(MAGNUM_TARGET_GLES2) && !defined(MAGNUM_TARGET_WEBGL)
+        static MAGNUM_GL_LOCAL void minSampleShadingImplementationDefault(GLfloat value);
+        #ifdef MAGNUM_TARGET_GLES
+        static MAGNUM_GL_LOCAL void minSampleShadingImplementationOES(GLfloat value);
+        #endif
+        #endif
 
         #ifndef MAGNUM_TARGET_WEBGL
         static GraphicsResetStatus MAGNUM_GL_LOCAL graphicsResetStatusImplementationDefault();
